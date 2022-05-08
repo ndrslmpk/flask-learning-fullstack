@@ -3,10 +3,12 @@
 #----------------------------------------------------------------------------#
 
 import json
+from os import abort
+import sys
 import dateutil.parser
 import babel
-from flask import Flask, render_template, request, Response, flash, redirect, url_for
-from sqlalchemy import MetaData
+from flask import Flask, jsonify, render_template, request, Response, flash, redirect, url_for
+from sqlalchemy import MetaData, inspect
 from flask_moment import Moment
 from flask_sqlalchemy import SQLAlchemy
 import logging
@@ -50,8 +52,8 @@ class Venue(db.Model):
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
     website_link = db.Column(db.String(120))
-    look_for_artists = db.Column(db.Boolean)
-    look_for_artists_description = db.Column(db.String(500))
+    seeking_talent = db.Column(db.Boolean)
+    seeking_description = db.Column(db.String(500))
     shows = db.relationship('Show', backref='Venue', lazy=True)
 
 class Artist(db.Model):
@@ -66,8 +68,8 @@ class Artist(db.Model):
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
     website_link = db.Column(db.String(120))
-    look_for_venues = db.Column(db.Boolean)
-    look_for_venues_description = db.Column(db.String(500))
+    seeking_venue = db.Column(db.Boolean)
+    seeking_description = db.Column(db.String(500))
     shows = db.relationship('Show', backref='Artist', lazy=True) # 1 <--Artist--[has-many]--Shows--> N
     # artist.upcoming_shows_count => Needs to be implemented in the Controller
     # artist.pasts_shows_count => Needs to be implented in the Controller
@@ -242,6 +244,66 @@ def create_venue_form():
 
 @app.route('/venues/create', methods=['POST'])
 def create_venue_submission():
+  print(request.form) 
+  print(request.form["name"]) 
+  print(request.form["city"]) 
+  print(request.form["state"]) 
+  print(request.form["address"]) 
+  print(request.form["phone"]) 
+  print(request.form["genres"]) 
+  print(request.form["facebook_link"]) 
+  print(request.form["image_link"]) 
+  print(request.form["website_link"]) 
+  print(request.form.get("seeking_talent", False)) 
+  print(request.form["seeking_description"]) 
+
+  error = False
+  try:
+    # Get form data
+    _name = request.form["name"] 
+    _city = request.form["city"] 
+    _state = request.form["state"] 
+    _address = request.form["address"] 
+    _phone = request.form["phone"] 
+    # _genres = request.form["genres"] 
+    _facebook_link = request.form["facebook_link"] 
+    _image_link = request.form["image_link"] 
+    _website_link = request.form["website_link"] 
+    _seeking_talent = request.form.get("seeking_talent", False)
+    if _seeking_talent == 'y': 
+      _seeking_talent = True
+    # _seeking_talent = request.form["seeking_talent"] 
+    print("_seeking_talent")
+    print(_seeking_talent)
+    _seeking_description = request.form["seeking_description"] 
+
+    # Create new Venue
+    _venue = Venue(
+      name = _name,
+      city = _city,
+      state = _state,
+      address = _address,
+      phone = _phone,
+      # genres = _genres,
+      facebook_link = _facebook_link,
+      image_link = _image_link,
+      website_link = _website_link,
+      seeking_talent = _seeking_talent,
+      seeking_description = _seeking_description 
+    )
+    db.session.add(_venue)
+    db.session.commit()
+  except:
+    error=True
+    db.session.rollback()
+    print(sys.exc_info())
+  finally:
+    db.session.close()
+  if error:
+    abort(400)
+  return "Successfully created the new {{ _name }}"
+    
+
   # TODO: insert form data as a new Venue record in the db, instead
   # TODO: modify data to be the data object returned from db insertion
 
