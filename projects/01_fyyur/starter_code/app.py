@@ -49,8 +49,10 @@ class Venue(db.Model):
     phone = db.Column(db.String(120))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
-
-    # TODO: implement any missing fields, as a database migration using Flask-Migrate
+    website_link = db.Column(db.String(120))
+    look_for_artists = db.Column(db.Boolean)
+    look_for_artists_description = db.Column(db.String(500))
+    shows = db.relationship('Show', backref='Venue', lazy=True)
 
 class Artist(db.Model):
     __tablename__ = 'Artist'
@@ -60,39 +62,24 @@ class Artist(db.Model):
     city = db.Column(db.String(120))
     state = db.Column(db.String(120))
     phone = db.Column(db.String(120))
-    genres = db.Column(db.String(120))
-    # genres might better be a nested object or an Array
+    genres = db.Column(db.String(120)) # genres might better be a nested object or an Array
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
-    website = db.Column(db.String(120))
+    website_link = db.Column(db.String(120))
+    look_for_venues = db.Column(db.Boolean)
+    look_for_venues_description = db.Column(db.String(500))
+    shows = db.relationship('Show', backref='Artist', lazy=True) # 1 <--Artist--[has-many]--Shows--> N
     # artist.upcoming_shows_count => Needs to be implemented in the Controller
     # artist.pasts_shows_count => Needs to be implented in the Controller
-    # show
 
-    # Relationship: 
-    # Artist has many shows
-    # ??? A show has **one** artist?
-
-    # TODO: implement any missing fields, as a database migration using Flask-Migrate
 
 class Show(db.Model):
   __tablename__ = 'Show'
 
   id = db.Column(db.Integer, primary_key=True)
   start_time = db.Column(db.DateTime)
-  # artist_id - FK
-  # artist_name = artist.name
-  # artist_image_link = artist.image_link
-
-  # venue.id
-  # venue.name
-  # Relation: Show <-n----1-> Venue
-  # Show has one Venue
-  # Venue has many Shows
-
-
-  
-# TODO Implement Show and Artist models, and complete all model relationships and properties, as a database migration.
+  artist_id = db.Column(db.Integer, db.ForeignKey('Artist.id'), nullable=False) # N <--Shows--[have-always-one]--Artist--> N
+  venue_id = db.Column(db.Integer, db.ForeignKey('Venue.id'), nullable=False)
 
 #----------------------------------------------------------------------------#
 # Filters.
@@ -115,7 +102,6 @@ app.jinja_env.filters['datetime'] = format_datetime
 @app.route('/')
 def index():
   return render_template('pages/home.html')
-
 
 #  Venues
 #  ----------------------------------------------------------------
