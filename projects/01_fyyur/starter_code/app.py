@@ -272,7 +272,6 @@ def create_venue_submission():
     _seeking_talent = request.form.get("seeking_talent", False)
     if _seeking_talent == 'y': 
       _seeking_talent = True
-    # _seeking_talent = request.form["seeking_talent"] 
     print("_seeking_talent")
     print(_seeking_talent)
     _seeking_description = request.form["seeking_description"] 
@@ -498,8 +497,59 @@ def create_artist_form():
 @app.route('/artists/create', methods=['POST'])
 def create_artist_submission():
   # called upon submitting the new artist listing form
-  # TODO: insert form data as a new Venue record in the db, instead
-  # TODO: modify data to be the data object returned from db insertion
+  print(request.form) 
+  print(request.form["name"]) 
+  print(request.form["city"]) 
+  print(request.form["state"]) 
+  print(request.form["phone"]) 
+  print(request.form["genres"]) 
+  print(request.form["facebook_link"]) 
+  print(request.form["image_link"]) 
+  print(request.form["website_link"]) 
+  print(request.form.get("seeking_venue", False)) 
+  print(request.form["seeking_description"]) 
+
+  error = False
+  try:
+    # Get form data
+    _name = request.form["name"] 
+    _city = request.form["city"] 
+    _state = request.form["state"] 
+    _phone = request.form["phone"] 
+    # _genres = request.form["genres"] 
+    _facebook_link = request.form["facebook_link"] 
+    _image_link = request.form["image_link"] 
+    _website_link = request.form["website_link"] 
+    _seeking_venue = request.form.get("seeking_venue", False)
+    if _seeking_venue == 'y': 
+      _seeking_venue = True
+    print("_seeking_venue")
+    print(_seeking_venue)
+    _seeking_description = request.form["seeking_description"] 
+
+    # Create new Venue
+    _artist = Artist(
+      name = _name,
+      city = _city,
+      state = _state,
+      phone = _phone,
+      # genres = _genres,
+      facebook_link = _facebook_link,
+      image_link = _image_link,
+      website_link = _website_link,
+      seeking_venue = _seeking_venue,
+      seeking_description = _seeking_description 
+    )
+    db.session.add(_artist)
+    db.session.commit()
+  except:
+    error=True
+    db.session.rollback()
+    print(sys.exc_info())
+  finally:
+    db.session.close()
+  if error:
+    abort()
 
   # on successful db insert, flash success
   flash('Artist ' + request.form['name'] + ' was successfully listed!')
