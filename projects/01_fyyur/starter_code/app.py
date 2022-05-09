@@ -611,7 +611,32 @@ def create_shows():
 
 @app.route('/shows/create', methods=['POST'])
 def create_show_submission():
-  # called to create new shows in the db, upon submitting new show listing form
+  error=False
+  # Get form data
+  print(request.form["artist_id"])
+  print(request.form["venue_id"])
+  print(request.form["start_time"])
+  try:
+    _artist_id = request.form["artist_id"] 
+    _venue_id = request.form["venue_id"] 
+    _start_time = request.form["start_time"] 
+
+  # Create new Venue
+    _show = Show(
+      artist_id = _artist_id,
+      venue_id = _venue_id,
+      start_time = _start_time
+    )
+    db.session.add(_show)
+    db.session.commit()
+  except:
+    error=True
+    db.session.rollback()
+    print(sys.exc_info())
+  finally:
+    db.session.close()
+  if error:
+    abort()
   # TODO: insert form data as a new Show record in the db, instead
 
   # on successful db insert, flash success
