@@ -1,7 +1,7 @@
 from datetime import datetime
 from flask_wtf import Form
 from wtforms import StringField, SelectField, SelectMultipleField, DateTimeField, BooleanField
-from wtforms.validators import DataRequired, AnyOf, URL, Regexp
+from wtforms.validators import DataRequired, Length, AnyOf, URL, Regexp
 
 class ShowForm(Form):
     artist_id = StringField(
@@ -83,7 +83,7 @@ class VenueForm(Form):
         'address', validators=[DataRequired()]
     )
     phone = StringField(
-        'phone', validators=[Regexp('\+(9[976]\d|8[987530]\d|6[987]\d|5[90]\d|42\d|3[875]\d|2[98654321]\d|9[8543210]|8[6421]|6[6543210]|5[87654321]|4[987654310]|3[9643210]|2[70]|7|1)\d{1,14}$', message="Phone number is not valid")]
+        'phone', validators=[Length(min=10, max=10, message="phone number is not between %(min)d and %(max)d long"), Regexp(regex='\+(9[976]\d|8[987530]\d|6[987]\d|5[90]\d|42\d|3[875]\d|2[98654321]\d|9[8543210]|8[6421]|6[6543210]|5[87654321]|4[987654310]|3[9643210]|2[70]|7|1)\d{1,14}$', message="Phone number is not valid")]
     )
     image_link = StringField(
         'image_link'
@@ -196,8 +196,7 @@ class ArtistForm(Form):
         ]
     )
     phone = StringField(
-        # TODO implement validation logic for phone 
-        'phone', validators=[Regexp('\+(9[976]\d|8[987530]\d|6[987]\d|5[90]\d|42\d|3[875]\d|2[98654321]\d|9[8543210]|8[6421]|6[6543210]|5[87654321]|4[987654310]|3[9643210]|2[70]|7|1)\d{1,14}$', message="Phone number is not valid")]
+        'phone',validators=[Length(min=10, max=10, message="phone number is not between %(min)d and %(max)d long"), Regexp(regex='\+(9[976]\d|8[987530]\d|6[987]\d|5[90]\d|42\d|3[875]\d|2[98654321]\d|9[8543210]|8[6421]|6[6543210]|5[87654321]|4[987654310]|3[9643210]|2[70]|7|1)\d{1,14}$', message="Phone number is not valid")]
     )
     image_link = StringField(
         'image_link'
@@ -227,7 +226,6 @@ class ArtistForm(Form):
         ]
      )
     facebook_link = StringField(
-        # TODO implement enum restriction
         'facebook_link', validators=[URL()]
      )
 
@@ -235,9 +233,12 @@ class ArtistForm(Form):
         'website_link', validators=[URL()]
      )
 
-    seeking_venue = BooleanField( 'seeking_venue', default=False,  false_values=('False', 'false', '') )
+    seeking_venue = BooleanField( 
+        'seeking_venue',
+        default=False, 
+        false_values=('False', 'false', '') )
 
     seeking_description = StringField(
-            'seeking_description'
+        'seeking_description'
      )
 
