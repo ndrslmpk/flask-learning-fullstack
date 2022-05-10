@@ -436,25 +436,18 @@ def show_artist(artist_id):
 #  ----------------------------------------------------------------
 @app.route('/artists/<int:artist_id>/edit', methods=['GET'])
 def edit_artist(artist_id):
-  form = ArtistForm()
-  artist={
-    "id": 4,
-    "name": "Guns N Petals",
-    "genres": ["Rock n Roll"],
-    "city": "San Francisco",
-    "state": "CA",
-    "phone": "326-123-5000",
-    "website": "https://www.gunsnpetalsband.com",
-    "facebook_link": "https://www.facebook.com/GunsNPetals",
-    "seeking_venue": True,
-    "seeking_description": "Looking for shows to perform at in the San Francisco Bay Area!",
-    "image_link": "https://images.unsplash.com/photo-1549213783-8284d0336c4f?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=300&q=80"
-  }
-  # TODO: populate form with fields from artist with ID <artist_id>
+  artist = Artist.query.get(artist_id)
+  form = ArtistForm(request.POST, obj=artist)
   return render_template('forms/edit_artist.html', form=form, artist=artist)
 
 @app.route('/artists/<int:artist_id>/edit', methods=['POST'])
 def edit_artist_submission(artist_id):
+  artist = Artist.query.get(artist_id)
+  _data = request.form
+  form = ArtistForm(formdata=_data, obj=artist)
+  if request.POST and form.validate():
+    form.populate_obj(artist)
+    artist.save()
   # TODO: take values from the form submitted, and update existing
   # artist record with ID <artist_id> using the new attributes
 
@@ -482,6 +475,14 @@ def edit_venue(venue_id):
 
 @app.route('/venues/<int:venue_id>/edit', methods=['POST'])
 def edit_venue_submission(venue_id):
+  venue = Venue.query.get(venue_id)
+  _data = request.form
+  form = VenueForm(formdata=_data, obj=venue)
+  if request.POST and form.validate():
+    form.populate_obj(venue)
+    venue.save()
+  if request.POST:
+    data = request.form 
   # TODO: take values from the form submitted, and update existing
   # venue record with ID <venue_id> using the new attributes
   return redirect(url_for('show_venue', venue_id=venue_id))
@@ -496,19 +497,7 @@ def create_artist_form():
 
 @app.route('/artists/create', methods=['POST'])
 def create_artist_submission():
-  # called upon submitting the new artist listing form
-  print(request.form) 
-  print(request.form["name"]) 
-  print(request.form["city"]) 
-  print(request.form["state"]) 
-  print(request.form["phone"]) 
-  print(request.form["genres"]) 
-  print(request.form["facebook_link"]) 
-  print(request.form["image_link"]) 
-  print(request.form["website_link"]) 
-  print(request.form.get("seeking_venue", False)) 
-  print(request.form["seeking_description"]) 
-
+  data = request.form 
   error = False
   try:
     # Get form data
@@ -545,6 +534,7 @@ def create_artist_submission():
   except:
     error=True
     db.session.rollback()
+    flash('An error occurred. Artist ' + request.form['name'] + ' could not be listed.', 'error')
     print(sys.exc_info())
   finally:
     db.session.close()
@@ -552,9 +542,9 @@ def create_artist_submission():
     abort()
 
   # on successful db insert, flash success
-  flash('Artist ' + request.form['name'] + ' was successfully listed!')
+  flash('Artist ' + request.form['name'] + ' was successfully listed!', )
   # TODO: on unsuccessful db insert, flash an error instead.
-  # e.g., flash('An error occurred. Artist ' + data.name + ' could not be listed.')
+  # e.g., 
   return render_template('pages/home.html')
 
 
