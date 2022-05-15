@@ -2,6 +2,8 @@
 # Imports
 #----------------------------------------------------------------------------#
 
+from enum import Enum
+import enum
 import json
 from os import abort
 import sys
@@ -37,6 +39,33 @@ migrate = Migrate(app, db)
 
 
 #----------------------------------------------------------------------------#
+# Customized data types.
+#----------------------------------------------------------------------------#
+
+class Genres(enum.Enum):
+  alternative ='Alternative'
+  blues ='Blues'
+  classical = 'Classical'
+  country = 'Country'
+  electronic = 'Electronic'
+  folk = 'Folk'
+  funk = 'Funk'
+  hiphop ='Hip-Hop'
+  house = 'House'
+  heavymetal = 'Heavy Metal'
+  instrumental = 'Instrumental'
+  jazz = 'Jazz'
+  musicaltheatre = 'Musical Theatre'
+  pop = 'Pop'
+  punk = 'Punk'
+  rnb = 'R&B'
+  reggae = 'Reggae'
+  rocknroll = 'Rock n Roll'
+  soul = 'Soul'
+  techno = 'Techno'
+  other = 'Other'
+
+#----------------------------------------------------------------------------#
 # Models.
 #----------------------------------------------------------------------------#
 
@@ -64,7 +93,7 @@ class Artist(db.Model):
     city = db.Column(db.String(120))
     state = db.Column(db.String(120))
     phone = db.Column(db.String(120))
-    genres = db.Column(db.String(120)) # genres might better be a nested object or an Array
+    genres = db.Column(db.Enum(Genres)) # genres might better be a nested object or an Array
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
     website_link = db.Column(db.String(120))

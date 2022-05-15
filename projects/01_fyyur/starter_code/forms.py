@@ -100,6 +100,7 @@ class VenueForm(Form):
             ('Folk', 'Folk'),
             ('Funk', 'Funk'),
             ('Hip-Hop', 'Hip-Hop'),
+            ('House', 'House'),
             ('Heavy Metal', 'Heavy Metal'),
             ('Instrumental', 'Instrumental'),
             ('Jazz', 'Jazz'),
@@ -110,6 +111,7 @@ class VenueForm(Form):
             ('Reggae', 'Reggae'),
             ('Rock n Roll', 'Rock n Roll'),
             ('Soul', 'Soul'),
+            ('Techno', 'Techno'),
             ('Other', 'Other'),
         ]
     )
