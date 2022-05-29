@@ -3,14 +3,17 @@
 #----------------------------------------------------------------------------#
 
 from enum import Enum
-import enum
 import json
 from os import abort
+import re
 import sys
 import dateutil.parser
 import babel
 from flask import Flask, jsonify, render_template, request, Response, flash, redirect, url_for
-from sqlalchemy import MetaData, inspect
+import sqlalchemy as sqla
+from sqlalchemy import MetaData, inspect, ARRAY
+import sqlalchemy.dialects.postgresql as pg
+from sqlalchemy.dialects.postgresql import JSON
 from flask_moment import Moment
 from flask_sqlalchemy import SQLAlchemy
 import logging
@@ -39,10 +42,10 @@ migrate = Migrate(app, db)
 
 
 #----------------------------------------------------------------------------#
-# Customized data types.
+# Enums
 #----------------------------------------------------------------------------#
 
-class Genres(enum.Enum):
+class Genres(Enum):
   alternative ='Alternative'
   blues ='Blues'
   classical = 'Classical'
@@ -78,12 +81,35 @@ class Venue(db.Model):
     state = db.Column(db.String(120))
     address = db.Column(db.String(120))
     phone = db.Column(db.String(120))
+    genres = db.Column(JSON)
     image_link = db.Column(db.String(500))
-    facebook_link = db.Column(db.String(120))
-    website_link = db.Column(db.String(120))
+    facebook_link = db.Column(db.String(500))
+    website_link = db.Column(db.String(500))
     seeking_talent = db.Column(db.Boolean)
     seeking_description = db.Column(db.String(500))
     shows = db.relationship('Show', backref='Venue', lazy=True)
+
+    def __repr__(self):
+        return f'Venue("{self.id}","{self.name}","{self.city}","{self.address}","{self.phone}","{self.genres}","{self.image_link}","{self.facebook_link}","{self.website_link}","{self.seeking_talent}","{self.seeking_description}")'
+    
+    @property
+    def serialize(self):
+      """Return object data in easily serializable format"""
+      return {
+          'id'                      : self.id,
+          'name'                    : self.name,
+          'city'                    : self.city,
+          'state'                   : self.state,
+          'address'                 : self.address,
+          'phone'                   : self.phone,
+          'genres'                  : self.genres,
+          'image_link'              : self.image_link,
+          'facebook_link'           : self.facebook_link,
+          'website_link'            : self.website_link,
+          'seeking_talent'          : self.seeking_talent,
+          'seeking_description'     : self.seeking_description,
+          'shows'           	      : self.shows,
+      }
 
 class Artist(db.Model):
     __tablename__ = 'Artist'
@@ -93,15 +119,46 @@ class Artist(db.Model):
     city = db.Column(db.String(120))
     state = db.Column(db.String(120))
     phone = db.Column(db.String(120))
-    genres = db.Column(db.Enum(Genres)) # genres might better be a nested object or an Array
+    genres = db.Column(JSON) # genres might better be a nested object or an Array
     image_link = db.Column(db.String(500))
-    facebook_link = db.Column(db.String(120))
-    website_link = db.Column(db.String(120))
+    facebook_link = db.Column(db.String(500))
+    website_link = db.Column(db.String(500))
     seeking_venue = db.Column(db.Boolean)
     seeking_description = db.Column(db.String(500))
     shows = db.relationship('Show', backref='Artist', lazy=True) # 1 <--Artist--[has-many]--Shows--> N
     # artist.upcoming_shows_count => Needs to be implemented in the Controller
     # artist.pasts_shows_count => Needs to be implented in the Controller
+    
+    def __repr__(self):
+      return f'Artist("{self.id}","{self.name}","{self.city}","{self.state}","{self.phone}","{self.genres}","{self.image_link}","{self.facebook_link}","{self.website_link}","{self.seeking_venue}","{self.seeking_description}")'
+
+    @property
+    def serialize(self):
+      """Return object data in easily serializable format"""
+      return {
+          'id'                      : self.id,
+          'name'                    : self.name,
+          'city'                    : self.city,
+          'state'                   : self.state,
+          'phone'                   : self.phone,
+          'genres'                  : self.genres,
+          'image_link'              : self.image_link,
+          'facebook_link'           : self.facebook_link,
+          'website_link'            : self.website_link,
+          'seeking_venue'          : self.seeking_venue,
+          'seeking_description'     : self.seeking_description,
+          'shows'           	      : self.shows,
+          # 'modified_at': dump_datetime(self.modified_at),
+          # This is an example how to deal with Many2Many relations
+          #  'many2many'  : self.serialize_many2many
+      }
+    # @property
+    # def serialize_many2many(self):
+    #   """
+    #   Return object's relations in easily serializable format.
+    #   NB! Calls many2many's serialize property.
+    #   """
+    #   return [ item.serialize for item in self.many2many]
 
 
 class Show(db.Model):
@@ -139,90 +196,33 @@ def index():
 
 @app.route('/venues')
 def venues():
-  # TODO: replace with real venues data.
-  #       num_upcoming_shows should be aggregated based on number of upcoming shows per venue.
-  data=[{
-    "city": "San Francisco",
-    "state": "CA",
-    "venues": [{
-      "id": 1,
-      "name": "The Musical Hop",
-      "num_upcoming_shows": 0,
-    }, {
-      "id": 3,
-      "name": "Park Square Live Music & Coffee",
-      "num_upcoming_shows": 1,
-    }]
-  }, {
-    "city": "New York",
-    "state": "NY",
-    "venues": [{
-      "id": 2,
-      "name": "The Dueling Pianos Bar",
-      "num_upcoming_shows": 0,
-    }]
-  }]
+  data = Venue.query.all()
   return render_template('pages/venues.html', areas=data);
 
 @app.route('/venues/search', methods=['POST'])
 def search_venues():
-  # TODO: implement search on venues with partial string search. Ensure it is case-insensitive.
-  # seach for Hop should return "The Musical Hop".
-  # search for "Music" should return "The Musical Hop" and "Park Square Live Music & Coffee"
-  response={
-    "count": 1,
-    "data": [{
-      "id": 2,
-      "name": "The Dueling Pianos Bar",
-      "num_upcoming_shows": 0,
-    }]
-  }
+  param = request.form["search_term"]
+  print("param", param)
+  query = Venue.query.filter(Venue.name.ilike("%{}%".format(param))).all()
+  print("query", query)
+  if(len(query)==0):
+    response = {
+      "count": len(query),
+      "data": []
+      }
+  else:
+    data = [i.serialize for i in query]
+    response = {
+      "count": len(query),
+      "data": data
+      }
   return render_template('pages/search_venues.html', results=response, search_term=request.form.get('search_term', ''))
 
-@app.route('/venues/<int:venue_id>')
+@app.route('/venues/<int:venue_id>', methods=['GET'])
 def show_venue(venue_id):
-  # shows the venue page with the given venue_id
-  # TODO: replace with real venue data from the venues table, using venue_id
-  data1={
-    "id": 1,
-    "name": "The Musical Hop",
-    "genres": ["Jazz", "Reggae", "Swing", "Classical", "Folk"],
-    "address": "1015 Folsom Street",
-    "city": "San Francisco",
-    "state": "CA",
-    "phone": "123-123-1234",
-    "website": "https://www.themusicalhop.com",
-    "facebook_link": "https://www.facebook.com/TheMusicalHop",
-    "seeking_talent": True,
-    "seeking_description": "We are on the lookout for a local artist to play every two weeks. Please call us.",
-    "image_link": "https://images.unsplash.com/photo-1543900694-133f37abaaa5?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=400&q=60",
-    "past_shows": [{
-      "artist_id": 4,
-      "artist_name": "Guns N Petals",
-      "artist_image_link": "https://images.unsplash.com/photo-1549213783-8284d0336c4f?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=300&q=80",
-      "start_time": "2019-05-21T21:30:00.000Z"
-    }],
-    "upcoming_shows": [],
-    "past_shows_count": 1,
-    "upcoming_shows_count": 0,
-  }
-  data2={
-    "id": 2,
-    "name": "The Dueling Pianos Bar",
-    "genres": ["Classical", "R&B", "Hip-Hop"],
-    "address": "335 Delancey Street",
-    "city": "New York",
-    "state": "NY",
-    "phone": "914-003-1132",
-    "website": "https://www.theduelingpianos.com",
-    "facebook_link": "https://www.facebook.com/theduelingpianos",
-    "seeking_talent": False,
-    "image_link": "https://images.unsplash.com/photo-1497032205916-ac775f0649ae?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=750&q=80",
-    "past_shows": [],
-    "upcoming_shows": [],
-    "past_shows_count": 0,
-    "upcoming_shows_count": 0,
-  }
+  data = Venue.query.filter_by(id=venue_id).first_or_404()
+  return render_template('pages/show_venue.html', venue=data)
+  # TODO: Implement upcoming_shows and further missing data fields
   data3={
     "id": 3,
     "name": "Park Square Live Music & Coffee",
@@ -260,8 +260,6 @@ def show_venue(venue_id):
     "past_shows_count": 1,
     "upcoming_shows_count": 1,
   }
-  data = list(filter(lambda d: d['id'] == venue_id, [data1, data2, data3]))[0]
-  return render_template('pages/show_venue.html', venue=data)
 
 #  Create Venue
 #  ----------------------------------------------------------------
@@ -273,19 +271,8 @@ def create_venue_form():
 
 @app.route('/venues/create', methods=['POST'])
 def create_venue_submission():
-  print(request.form) 
-  print(request.form["name"]) 
-  print(request.form["city"]) 
-  print(request.form["state"]) 
-  print(request.form["address"]) 
-  print(request.form["phone"]) 
-  print(request.form["genres"]) 
-  print(request.form["facebook_link"]) 
-  print(request.form["image_link"]) 
-  print(request.form["website_link"]) 
-  print(request.form.get("seeking_talent", False)) 
-  print(request.form["seeking_description"]) 
-
+  # temprorary store data as dict to store multiselect genres as list object
+  dict = request.form.to_dict(flat=False)
   error = False
   try:
     # Get form data
@@ -294,15 +281,13 @@ def create_venue_submission():
     _state = request.form["state"] 
     _address = request.form["address"] 
     _phone = request.form["phone"] 
-    # _genres = request.form["genres"] 
+    _genres = dict["genres"] 
     _facebook_link = request.form["facebook_link"] 
     _image_link = request.form["image_link"] 
     _website_link = request.form["website_link"] 
     _seeking_talent = request.form.get("seeking_talent", False)
     if _seeking_talent == 'y': 
       _seeking_talent = True
-    print("_seeking_talent")
-    print(_seeking_talent)
     _seeking_description = request.form["seeking_description"] 
 
     # Create new Venue
@@ -312,7 +297,7 @@ def create_venue_submission():
       state = _state,
       address = _address,
       phone = _phone,
-      # genres = _genres,
+      genres = _genres,
       facebook_link = _facebook_link,
       image_link = _image_link,
       website_link = _website_link,
@@ -328,8 +313,7 @@ def create_venue_submission():
   finally:
     db.session.close()
   if error:
-    abort(400)
-  return "Successfully created the new {{ _name }}"
+    abort()
     
 
   # TODO: insert form data as a new Venue record in the db, instead
@@ -342,73 +326,60 @@ def create_venue_submission():
   # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
   return render_template('pages/home.html')
 
-@app.route('/venues/<venue_id>', methods=['DELETE'])
+@app.route('/venues/<int:venue_id>', methods=['DELETE'])
 def delete_venue(venue_id):
-  # TODO: Complete this endpoint for taking a venue_id, and using
+  error=True
+  try:
+    _venue = Venue.query.filter(Venue.id == venue_id).delete()
+    print(_venue)
+    db.session.commit()
+  except Exception as e:
+        print(e)
+        error = True
+        db.session.rollback()
+  finally:
+      db.session.close()
+      if not error:
+          flash('Venue was successfully deleted!')
+          return render_template('pages/home.html')
+      else:
+          flash('An error occurred. Venue could not be deleted.')
+      return None
+
   # SQLAlchemy ORM to delete a record. Handle cases where the session commit could fail.
 
-  # BONUS CHALLENGE: Implement a button to delete a Venue on a Venue Page, have it so that
-  # clicking that button delete it from the db then redirect the user to the homepage
-  return None
+  # 
 
 #  Artists
 #  ----------------------------------------------------------------
 @app.route('/artists')
 def artists():
-  # TODO: replace with real data returned from querying the database
-  data=[{
-    "id": 4,
-    "name": "Guns N Petals",
-  }, {
-    "id": 5,
-    "name": "Matt Quevedo",
-  }, {
-    "id": 6,
-    "name": "The Wild Sax Band",
-  }]
+  data = Artist.query.all()
   return render_template('pages/artists.html', artists=data)
 
 @app.route('/artists/search', methods=['POST'])
 def search_artists():
-  # TODO: implement search on artists with partial string search. Ensure it is case-insensitive.
-  # seach for "A" should return "Guns N Petals", "Matt Quevado", and "The Wild Sax Band".
-  # search for "band" should return "The Wild Sax Band".
-  response={
-    "count": 1,
-    "data": [{
-      "id": 4,
-      "name": "Guns N Petals",
-      "num_upcoming_shows": 0,
-    }]
-  }
+  param = request.form["search_term"]
+  query = Artist.query.filter(Artist.name.ilike("%{}%".format(param))).all()
+  if(len(query)==0):
+    response = {
+      "count": len(query),
+      "data": []
+      }
+  else:
+    data = [i.serialize for i in query]
+    response = {
+      "count": len(query),
+      "data": data
+      }
+    print(response)
   return render_template('pages/search_artists.html', results=response, search_term=request.form.get('search_term', ''))
 
 @app.route('/artists/<int:artist_id>')
 def show_artist(artist_id):
-  # shows the artist page with the given artist_id
-  # TODO: replace with real artist data from the artist table, using artist_id
-  data1={
-    "id": 4,
-    "name": "Guns N Petals",
-    "genres": ["Rock n Roll"],
-    "city": "San Francisco",
-    "state": "CA",
-    "phone": "326-123-5000",
-    "website": "https://www.gunsnpetalsband.com",
-    "facebook_link": "https://www.facebook.com/GunsNPetals",
-    "seeking_venue": True,
-    "seeking_description": "Looking for shows to perform at in the San Francisco Bay Area!",
-    "image_link": "https://images.unsplash.com/photo-1549213783-8284d0336c4f?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=300&q=80",
-    "past_shows": [{
-      "venue_id": 1,
-      "venue_name": "The Musical Hop",
-      "venue_image_link": "https://images.unsplash.com/photo-1543900694-133f37abaaa5?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=400&q=60",
-      "start_time": "2019-05-21T21:30:00.000Z"
-    }],
-    "upcoming_shows": [],
-    "past_shows_count": 1,
-    "upcoming_shows_count": 0,
-  }
+  data = Artist.query.filter_by(id=artist_id).first_or_404()
+  return render_template('pages/show_artist.html', artist=data)
+
   data2={
     "id": 5,
     "name": "Matt Quevedo",
@@ -458,8 +429,6 @@ def show_artist(artist_id):
     "past_shows_count": 0,
     "upcoming_shows_count": 3,
   }
-  data = list(filter(lambda d: d['id'] == artist_id, [data1, data2, data3]))[0]
-  return render_template('pages/show_artist.html', artist=data)
 
 #  Update
 #  ----------------------------------------------------------------
@@ -526,7 +495,8 @@ def create_artist_form():
 
 @app.route('/artists/create', methods=['POST'])
 def create_artist_submission():
-  data = request.form 
+  # temprorary store data as dict to store multiselect genres as list object
+  dict = request.form.to_dict(flat=False)
   error = False
   try:
     # Get form data
@@ -534,24 +504,22 @@ def create_artist_submission():
     _city = request.form["city"] 
     _state = request.form["state"] 
     _phone = request.form["phone"] 
-    # _genres = request.form["genres"] 
+    _genres = dict["genres"] 
     _facebook_link = request.form["facebook_link"] 
     _image_link = request.form["image_link"] 
     _website_link = request.form["website_link"] 
     _seeking_venue = request.form.get("seeking_venue", False)
     if _seeking_venue == 'y': 
       _seeking_venue = True
-    print("_seeking_venue")
-    print(_seeking_venue)
     _seeking_description = request.form["seeking_description"] 
 
-    # Create new Venue
+    # Create new Artist
     _artist = Artist(
       name = _name,
       city = _city,
       state = _state,
       phone = _phone,
-      # genres = _genres,
+      genres = _genres,
       facebook_link = _facebook_link,
       image_link = _image_link,
       website_link = _website_link,
