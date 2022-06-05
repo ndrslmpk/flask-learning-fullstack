@@ -2,14 +2,17 @@
 # Imports
 #----------------------------------------------------------------------------#
 
+from datetime import date, time
 from enum import Enum
 import json
 from os import abort
 import re
+from sre_parse import State
 import sys
 import dateutil.parser
 import babel
 from flask import Flask, jsonify, render_template, request, Response, flash, redirect, url_for
+from psycopg2 import Time
 import sqlalchemy as sqla
 from sqlalchemy import MetaData, inspect, ARRAY
 import sqlalchemy.dialects.postgresql as pg
@@ -90,7 +93,7 @@ class Venue(db.Model):
     shows = db.relationship('Show', backref='Venue', lazy=True)
 
     def __repr__(self):
-        return f'Venue("{self.id}","{self.name}","{self.city}","{self.address}","{self.phone}","{self.genres}","{self.image_link}","{self.facebook_link}","{self.website_link}","{self.seeking_talent}","{self.seeking_description}")'
+        return f'Venue("{self.id}","{self.name}","{self.city}","{self.state}","{self.address}","{self.phone}","{self.genres}","{self.image_link}","{self.facebook_link}","{self.website_link}","{self.seeking_talent}","{self.seeking_description}")'
     
     @property
     def serialize(self):
@@ -130,7 +133,7 @@ class Artist(db.Model):
     # artist.pasts_shows_count => Needs to be implented in the Controller
     
     def __repr__(self):
-      return f'Artist("{self.id}","{self.name}","{self.city}","{self.state}","{self.phone}","{self.genres}","{self.image_link}","{self.facebook_link}","{self.website_link}","{self.seeking_venue}","{self.seeking_description}")'
+      return f'Artist( "{self.id}", "{self.name}", "{self.city}", "{self.state}", "{self.phone}", "{self.genres}", "{self.image_link}", "{self.facebook_link}", "{self.website_link}", "{self.seeking_venue}", "{self.seeking_description}")'
 
     @property
     def serialize(self):
@@ -169,12 +172,24 @@ class Show(db.Model):
   artist_id = db.Column(db.Integer, db.ForeignKey('Artist.id'), nullable=False) # N <--Shows--[have-always-one]--Artist--> N
   venue_id = db.Column(db.Integer, db.ForeignKey('Venue.id'), nullable=False)
 
+  @property
+  def serialize(self):
+    """Return object data in easily serializable format"""
+    return {
+      'id'                      : self.id,
+      'start_time'              : self.start_time,
+      'artist_id'               : self.artist_id,
+      'venue_id'                : self.venue_id,
+    }
 #----------------------------------------------------------------------------#
 # Filters.
 #----------------------------------------------------------------------------#
 
 def format_datetime(value, format='medium'):
-  date = dateutil.parser.parse(value)
+  if isinstance(value, str):
+    date = dateutil.parser.parse(value)
+  else:
+    date=value
   if format == 'full':
       format="EEEE MMMM, d, y 'at' h:mma"
   elif format == 'medium':
@@ -196,7 +211,18 @@ def index():
 
 @app.route('/venues')
 def venues():
-  data = Venue.query.all()
+  response = []
+
+  areas = Venue.query.with_entities(Venue.state, Venue.city).distinct().all() # returns all existing combinations of "state" and "city" for venues 
+  for area in areas:
+    entries = Venue.query.filter_by(state=area.state, city=area.city).all()
+    entity = {
+      "city": area.city,
+      "state": area.state,
+      "venues": [{"id": v.id, "name": v.name, "num_upcoming_shows": v.shows} for v in entries]
+    }
+    response.append(entity)
+  data = response
   return render_template('pages/venues.html', areas=data);
 
 @app.route('/venues/search', methods=['POST'])
@@ -220,46 +246,48 @@ def search_venues():
 
 @app.route('/venues/<int:venue_id>', methods=['GET'])
 def show_venue(venue_id):
-  data = Venue.query.filter_by(id=venue_id).first_or_404()
-  return render_template('pages/show_venue.html', venue=data)
-  # TODO: Implement upcoming_shows and further missing data fields
-  data3={
-    "id": 3,
-    "name": "Park Square Live Music & Coffee",
-    "genres": ["Rock n Roll", "Jazz", "Classical", "Folk"],
-    "address": "34 Whiskey Moore Ave",
-    "city": "San Francisco",
-    "state": "CA",
-    "phone": "415-000-1234",
-    "website": "https://www.parksquarelivemusicandcoffee.com",
-    "facebook_link": "https://www.facebook.com/ParkSquareLiveMusicAndCoffee",
-    "seeking_talent": False,
-    "image_link": "https://images.unsplash.com/photo-1485686531765-ba63b07845a7?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=747&q=80",
-    "past_shows": [{
-      "artist_id": 5,
-      "artist_name": "Matt Quevedo",
-      "artist_image_link": "https://images.unsplash.com/photo-1495223153807-b916f75de8c5?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=334&q=80",
-      "start_time": "2019-06-15T23:00:00.000Z"
-    }],
-    "upcoming_shows": [{
-      "artist_id": 6,
-      "artist_name": "The Wild Sax Band",
-      "artist_image_link": "https://images.unsplash.com/photo-1558369981-f9ca78462e61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=794&q=80",
-      "start_time": "2035-04-01T20:00:00.000Z"
-    }, {
-      "artist_id": 6,
-      "artist_name": "The Wild Sax Band",
-      "artist_image_link": "https://images.unsplash.com/photo-1558369981-f9ca78462e61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=794&q=80",
-      "start_time": "2035-04-08T20:00:00.000Z"
-    }, {
-      "artist_id": 6,
-      "artist_name": "The Wild Sax Band",
-      "artist_image_link": "https://images.unsplash.com/photo-1558369981-f9ca78462e61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=794&q=80",
-      "start_time": "2035-04-15T20:00:00.000Z"
-    }],
-    "past_shows_count": 1,
-    "upcoming_shows_count": 1,
+  venue = Venue.query.filter_by(id=venue_id).first_or_404()
+  shows = Show.query.filter_by(venue_id=venue_id).all()
+  upcoming_shows = []
+  past_shows = []
+  for show in shows:
+    artist = Artist.query.filter_by(id=show.artist_id).first_or_404()
+    if(show.start_time < datetime.now()):
+      upcoming_shows.append({
+        "artist_id": artist.id, 
+        "artist_name":artist.name, 
+        "artist_image_link": artist.image_link,
+        "start_time": show.start_time
+        })
+    elif(show.start_time >= datetime.now()):
+      past_shows.append({
+        "artist_id": artist.id, 
+        "artist_name":artist.name, 
+        "artist_image_link": artist.image_link,
+        "start_time": show.start_time
+        })
+  data = {
+    "id": venue.id,
+    "name": venue.name,
+    "genres": venue.genres,
+    "address": venue.address,
+    "city": venue.city,
+    "state": venue.state,
+    "phone": venue.phone,
+    "genres": venue.genres,
+    "image_link": venue.image_link,
+    "facebook_link": venue.facebook_link,
+    "website_link": venue.website_link,
+    "seeking_talent": venue.seeking_talent,
+    "seeking_description": venue.seeking_description,
+    "past_shows": past_shows,
+    "upcoming_shows": upcoming_shows,
+    "past_shows_count": len(past_shows),
+    "upcoming_shows_count": len(upcoming_shows),
   }
+  print(data)
+
+  return render_template('pages/show_venue.html', venue=data)
 
 #  Create Venue
 #  ----------------------------------------------------------------
