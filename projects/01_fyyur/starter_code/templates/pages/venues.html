@@ -8,10 +8,13 @@
     <a href="/venues/{{ venue.id }}">
       <i class="fas fa-music"></i>
       <div class="item">
-        <!-- TODO: Implement number of upcoming shows -->
         <h5>{{ venue.name }} : [ {{venue.num_upcoming_shows}} ]</h5>
         <span>
-          <form action="/delete/{{ venue.id }}" name="delete" method="DELETE">
+          <form
+            action="/venues/delete/{{ venue.id }}"
+            name="delete"
+            method="POST"
+          >
             <button id="{{ venue.id }}" type="submit">&cross;</button>
           </form>
         </span>

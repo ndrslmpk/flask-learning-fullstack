@@ -183,8 +183,8 @@ class Show(db.Model):
 
   id = db.Column(db.Integer, primary_key=True)
   start_time = db.Column(db.DateTime)
-  artist_id = db.Column(db.Integer, db.ForeignKey('Artist.id'), nullable=False) # N <--Shows--[have-always-one]--Artist--> N
-  venue_id = db.Column(db.Integer, db.ForeignKey('Venue.id'), nullable=False)
+  artist_id = db.Column(db.Integer, db.ForeignKey('Artist.id', ondelete='CASCADE'), nullable=False) # N <--Shows--[have-always-one]--Artist--> N
+  venue_id = db.Column(db.Integer, db.ForeignKey('Venue.id', ondelete='CASCADE'), nullable=False)
 
   @property
   def serialize(self):
@@ -355,29 +355,28 @@ def create_venue_submission():
     db.session.close()
   if error:
     # abort()
-    flash('ERROR: An error occurred. Show could not be listed.')
+    flash('ERROR: An error occurred. Show could not be listed.', 'error')
   flash('Venue ' + request.form['name'] + ' was successfully listed!')
   return render_template('pages/home.html')
 
-@app.route('/venues/<int:venue_id>', methods=['DELETE'])
+@app.route('/venues/delete/<int:venue_id>', methods=['POST'])
 def delete_venue(venue_id):
-  error=True
+  error=False
   try:
-    _venue = Venue.query.filter(Venue.id == venue_id).delete()
-    print(_venue)
+    _venue = Venue.query.filter_by(id=venue_id).first_or_404()
+    db.session.delete(_venue)
     db.session.commit()
   except Exception as e:
-        print(e)
-        error = True
-        db.session.rollback()
+    print(e)
+    error = True
+    db.session.rollback()
   finally:
-      db.session.close()
-      if not error:
-          flash('Venue was successfully deleted!')
-          return render_template('pages/home.html')
-      else:
-          flash('An error occurred. Venue could not be deleted.')
-      return None
+    db.session.close()
+  if error==False:
+    flash('Venue was successfully deleted!')
+  else:
+    flash('An error occurred. Venue could not be deleted.')
+  return render_template('pages/home.html')
 
 #  Artists
 #  ----------------------------------------------------------------
@@ -544,11 +543,10 @@ def edit_venue_submission(venue_id):
     error=True
     db.session.rollback()
     print(sys.exc_info())
-    flash('An error occurred. Venue could not be updated.', 'error')
   finally:
     db.session.close()
   if error==True:
-    flash('ERROR: Venue was not listed!', )
+    flash('ERROR:Venue could not be updated.', 'error')
   else: 
     flash('Venue ' + request.form['name'] + ' was successfully updated!', )
 
@@ -605,7 +603,7 @@ def create_artist_submission():
     db.session.close()
   if error:
     abort()
-    flash('ERROR: Artist was not listed!', )
+    flash('ERROR: Artist was not listed!', 'error')
   flash('Artist ' + request.form['name'] + ' was successfully listed!', )
   return render_template('pages/home.html')
 
@@ -660,7 +658,7 @@ def create_show_submission():
     db.session.close()
   if error:
     # abort(404)
-    flash('ERROR: An error occurred. Show could not be listed.')
+    flash('ERROR: An error occurred. Show could not be listed.', 'error')
   return render_template('pages/home.html')
 
 @app.errorhandler(404)

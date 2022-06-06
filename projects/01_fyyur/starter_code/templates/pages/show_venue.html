@@ -94,5 +94,10 @@ block content %}
 <a href="/venues/{{ venue.id }}/edit"
   ><button class="btn btn-primary btn-lg">Edit</button></a
 >
+<form action="/venues/delete/{{ venue.id }}" name="delete" method="POST">
+  <button class="btn btn-danger btn-lg" id="{{ venue.id }}" type="submit">
+    Delete
+  </button>
+</form>
 
 {% endblock %}
