@@ -133,7 +133,21 @@ class Artist(db.Model):
     # artist.pasts_shows_count => Needs to be implented in the Controller
     
     def __repr__(self):
-      return f'Artist( "{self.id}", "{self.name}", "{self.city}", "{self.state}", "{self.phone}", "{self.genres}", "{self.image_link}", "{self.facebook_link}", "{self.website_link}", "{self.seeking_venue}", "{self.seeking_description}")'
+      # return f'Artist( "{self.id}", "{self.name}", "{self.city}", "{self.state}", "{self.phone}", "{self.genres}", "{self.image_link}", "{self.facebook_link}", "{self.website_link}", "{self.seeking_venue}", "{self.seeking_description}")'
+      return {
+          'id'                      : self.id,
+          'name'                    : self.name,
+          'city'                    : self.city,
+          'state'                   : self.state,
+          'phone'                   : self.phone,
+          'genres'                  : self.genres,
+          'image_link'              : self.image_link,
+          'facebook_link'           : self.facebook_link,
+          'website_link'            : self.website_link,
+          'seeking_venue'          : self.seeking_venue,
+          'seeking_description'     : self.seeking_description,
+          'shows'           	      : self.shows,
+      }
 
     @property
     def serialize(self):
@@ -285,7 +299,6 @@ def show_venue(venue_id):
     "past_shows_count": len(past_shows),
     "upcoming_shows_count": len(upcoming_shows),
   }
-  print(data)
 
   return render_template('pages/show_venue.html', venue=data)
 
@@ -343,10 +356,6 @@ def create_venue_submission():
   if error:
     abort()
     
-
-  # TODO: insert form data as a new Venue record in the db, instead
-  # TODO: modify data to be the data object returned from db insertion
-
   # on successful db insert, flash success
   flash('Venue ' + request.form['name'] + ' was successfully listed!')
   # TODO: on unsuccessful db insert, flash an error instead.
@@ -373,10 +382,6 @@ def delete_venue(venue_id):
       else:
           flash('An error occurred. Venue could not be deleted.')
       return None
-
-  # SQLAlchemy ORM to delete a record. Handle cases where the session commit could fail.
-
-  # 
 
 #  Artists
 #  ----------------------------------------------------------------
@@ -405,65 +410,56 @@ def search_artists():
 
 @app.route('/artists/<int:artist_id>')
 def show_artist(artist_id):
-  data = Artist.query.filter_by(id=artist_id).first_or_404()
+  artist = Artist.query.filter_by(id=artist_id).first_or_404()
+  shows = Show.query.filter_by(artist_id=artist_id).all()
+  upcoming_shows = []
+  past_shows = []
+  for show in shows:
+    venue = Venue.query.filter_by(id=show.venue_id).first_or_404()
+    if(show.start_time < datetime.now()):
+      upcoming_shows.append({
+        "venue_id": venue.id, 
+        "venue_name":venue.name, 
+        "venue_image_link": venue.image_link,
+        "start_time": show.start_time
+        })
+    elif(show.start_time >= datetime.now()):
+      past_shows.append({
+        "venue_id": venue.id, 
+        "venue_name":venue.name, 
+        "venue_image_link": venue.image_link,
+        "start_time": show.start_time
+        })
+  data = {
+    "id": artist.id,
+    "name": artist.name,
+    "genres": artist.genres,
+    "city": artist.city,
+    "state": artist.state,
+    "phone": artist.phone,
+    "genres": artist.genres,
+    "image_link": artist.image_link,
+    "facebook_link": artist.facebook_link,
+    "website_link": artist.website_link,
+    "seeking_venue": artist.seeking_venue,
+    "seeking_description": artist.seeking_description,
+    "past_shows": past_shows,
+    "upcoming_shows": upcoming_shows,
+    "past_shows_count": len(past_shows),
+    "upcoming_shows_count": len(upcoming_shows),
+  }
   return render_template('pages/show_artist.html', artist=data)
-
-  data2={
-    "id": 5,
-    "name": "Matt Quevedo",
-    "genres": ["Jazz"],
-    "city": "New York",
-    "state": "NY",
-    "phone": "300-400-5000",
-    "facebook_link": "https://www.facebook.com/mattquevedo923251523",
-    "seeking_venue": False,
-    "image_link": "https://images.unsplash.com/photo-1495223153807-b916f75de8c5?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=334&q=80",
-    "past_shows": [{
-      "venue_id": 3,
-      "venue_name": "Park Square Live Music & Coffee",
-      "venue_image_link": "https://images.unsplash.com/photo-1485686531765-ba63b07845a7?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=747&q=80",
-      "start_time": "2019-06-15T23:00:00.000Z"
-    }],
-    "upcoming_shows": [],
-    "past_shows_count": 1,
-    "upcoming_shows_count": 0,
-  }
-  data3={
-    "id": 6,
-    "name": "The Wild Sax Band",
-    "genres": ["Jazz", "Classical"],
-    "city": "San Francisco",
-    "state": "CA",
-    "phone": "432-325-5432",
-    "seeking_venue": False,
-    "image_link": "https://images.unsplash.com/photo-1558369981-f9ca78462e61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=794&q=80",
-    "past_shows": [],
-    "upcoming_shows": [{
-      "venue_id": 3,
-      "venue_name": "Park Square Live Music & Coffee",
-      "venue_image_link": "https://images.unsplash.com/photo-1485686531765-ba63b07845a7?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=747&q=80",
-      "start_time": "2035-04-01T20:00:00.000Z"
-    }, {
-      "venue_id": 3,
-      "venue_name": "Park Square Live Music & Coffee",
-      "venue_image_link": "https://images.unsplash.com/photo-1485686531765-ba63b07845a7?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=747&q=80",
-      "start_time": "2035-04-08T20:00:00.000Z"
-    }, {
-      "venue_id": 3,
-      "venue_name": "Park Square Live Music & Coffee",
-      "venue_image_link": "https://images.unsplash.com/photo-1485686531765-ba63b07845a7?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=747&q=80",
-      "start_time": "2035-04-15T20:00:00.000Z"
-    }],
-    "past_shows_count": 0,
-    "upcoming_shows_count": 3,
-  }
 
 #  Update
 #  ----------------------------------------------------------------
 @app.route('/artists/<int:artist_id>/edit', methods=['GET'])
 def edit_artist(artist_id):
-  artist = Artist.query.get(artist_id)
-  form = ArtistForm(request.POST, obj=artist)
+  artist = Artist.query.filter_by(id=artist_id).first_or_404()
+  artist = artist.serialize
+  form = ArtistForm()
+  # form = ArtistForm()
+  # artist = json.dump(artist)
+  print(artist)
   return render_template('forms/edit_artist.html', form=form, artist=artist)
 
 @app.route('/artists/<int:artist_id>/edit', methods=['POST'])
@@ -471,7 +467,7 @@ def edit_artist_submission(artist_id):
   artist = Artist.query.get(artist_id)
   _data = request.form
   form = ArtistForm(formdata=_data, obj=artist)
-  if request.POST and form.validate():
+  if request.method == 'POST' and form.validate():
     form.populate_obj(artist)
     artist.save()
   # TODO: take values from the form submitted, and update existing
@@ -578,44 +574,19 @@ def create_artist_submission():
 
 @app.route('/shows')
 def shows():
-  # displays list of shows at /shows
-  # TODO: replace with real venues data.
-  data=[{
-    "venue_id": 1,
-    "venue_name": "The Musical Hop",
-    "artist_id": 4,
-    "artist_name": "Guns N Petals",
-    "artist_image_link": "https://images.unsplash.com/photo-1549213783-8284d0336c4f?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=300&q=80",
-    "start_time": "2019-05-21T21:30:00.000Z"
-  }, {
-    "venue_id": 3,
-    "venue_name": "Park Square Live Music & Coffee",
-    "artist_id": 5,
-    "artist_name": "Matt Quevedo",
-    "artist_image_link": "https://images.unsplash.com/photo-1495223153807-b916f75de8c5?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=334&q=80",
-    "start_time": "2019-06-15T23:00:00.000Z"
-  }, {
-    "venue_id": 3,
-    "venue_name": "Park Square Live Music & Coffee",
-    "artist_id": 6,
-    "artist_name": "The Wild Sax Band",
-    "artist_image_link": "https://images.unsplash.com/photo-1558369981-f9ca78462e61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=794&q=80",
-    "start_time": "2035-04-01T20:00:00.000Z"
-  }, {
-    "venue_id": 3,
-    "venue_name": "Park Square Live Music & Coffee",
-    "artist_id": 6,
-    "artist_name": "The Wild Sax Band",
-    "artist_image_link": "https://images.unsplash.com/photo-1558369981-f9ca78462e61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=794&q=80",
-    "start_time": "2035-04-08T20:00:00.000Z"
-  }, {
-    "venue_id": 3,
-    "venue_name": "Park Square Live Music & Coffee",
-    "artist_id": 6,
-    "artist_name": "The Wild Sax Band",
-    "artist_image_link": "https://images.unsplash.com/photo-1558369981-f9ca78462e61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=794&q=80",
-    "start_time": "2035-04-15T20:00:00.000Z"
-  }]
+  data = []
+  query_show = Show.query.join(Artist).join(Venue).with_entities(Venue.id, Venue.name, Artist.id, Artist.name, Artist.image_link, Show.start_time).all()
+  for row in query_show:
+    # Takes each column[i] of a returned query object and assigns it
+    show_data = {
+      "venue_id": row[0],
+      "venue_name": row[1],
+      "artist_id": row[2],
+      "artist_name": row[3],
+      "artist_image_link": row[4],
+      "start_time": row[5]
+    }
+    data.append(show_data)
   return render_template('pages/shows.html', shows=data)
 
 @app.route('/shows/create')
@@ -627,10 +598,6 @@ def create_shows():
 @app.route('/shows/create', methods=['POST'])
 def create_show_submission():
   error=False
-  # Get form data
-  print(request.form["artist_id"])
-  print(request.form["venue_id"])
-  print(request.form["start_time"])
   try:
     _artist_id = request.form["artist_id"] 
     _venue_id = request.form["venue_id"] 
@@ -652,9 +619,6 @@ def create_show_submission():
     db.session.close()
   if error:
     abort()
-  # TODO: insert form data as a new Show record in the db, instead
-
-  # on successful db insert, flash success
   flash('Show was successfully listed!')
   # TODO: on unsuccessful db insert, flash an error instead.
   # e.g., flash('An error occurred. Show could not be listed.')
