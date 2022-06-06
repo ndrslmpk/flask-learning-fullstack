@@ -354,13 +354,9 @@ def create_venue_submission():
   finally:
     db.session.close()
   if error:
-    abort()
-    
-  # on successful db insert, flash success
+    # abort()
+    flash('ERROR: An error occurred. Show could not be listed.')
   flash('Venue ' + request.form['name'] + ' was successfully listed!')
-  # TODO: on unsuccessful db insert, flash an error instead.
-  # e.g., flash('An error occurred. Venue ' + data.name + ' could not be listed.')
-  # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
   return render_template('pages/home.html')
 
 @app.route('/venues/<int:venue_id>', methods=['DELETE'])
@@ -456,23 +452,51 @@ def show_artist(artist_id):
 def edit_artist(artist_id):
   artist = Artist.query.filter_by(id=artist_id).first_or_404()
   artist = artist.serialize
-  form = ArtistForm()
-  # form = ArtistForm()
-  # artist = json.dump(artist)
-  print(artist)
+  form = ArtistForm(data=artist)
   return render_template('forms/edit_artist.html', form=form, artist=artist)
 
 @app.route('/artists/<int:artist_id>/edit', methods=['POST'])
 def edit_artist_submission(artist_id):
-  artist = Artist.query.get(artist_id)
-  _data = request.form
-  form = ArtistForm(formdata=_data, obj=artist)
-  if request.method == 'POST' and form.validate():
-    form.populate_obj(artist)
-    artist.save()
-  # TODO: take values from the form submitted, and update existing
-  # artist record with ID <artist_id> using the new attributes
-
+  error=False
+  artist = Artist.query.filter_by(id=artist_id).first_or_404()
+  dict_format = request.form.to_dict(flat=False)
+  try:
+    # Get form data
+    _name = request.form["name"] 
+    _city = request.form["city"] 
+    _state = request.form["state"] 
+    _phone = request.form["phone"] 
+    _genres = dict_format["genres"] 
+    _facebook_link = request.form["facebook_link"] 
+    _image_link = request.form["image_link"] 
+    _website_link = request.form["website_link"] 
+    _seeking_venue = request.form.get("seeking_venue", False)
+    if _seeking_venue == 'y': 
+      _seeking_venue = True
+    _seeking_description = request.form["seeking_description"] 
+    # Update Artist
+    artist.name = _name
+    artist.city = _city
+    artist.state = _state
+    artist.phone = _phone
+    artist.genres = _genres
+    artist.facebook_link = _facebook_link
+    artist.image_link = _image_link
+    artist.website_link = _website_link
+    artist.seeking_venue = _seeking_venue
+    artist.seeking_description = _seeking_description
+    db.session.commit()
+  except:
+    error=True
+    db.session.rollback()
+    print(sys.exc_info())
+    flash('An error occurred. Artist could not be updated.', 'error')
+  finally:
+    db.session.close()
+  if error==True:
+    flash('ERROR: Artist was not listed!', )
+  else: 
+    flash('Artist ' + request.form['name'] + ' was successfully updated!', )
   return redirect(url_for('show_artist', artist_id=artist_id))
 
 @app.route('/venues/<int:venue_id>/edit', methods=['GET'])
@@ -556,16 +580,12 @@ def create_artist_submission():
     error=True
     db.session.rollback()
     flash('An error occurred. Artist ' + request.form['name'] + ' could not be listed.', 'error')
-    print(sys.exc_info())
   finally:
     db.session.close()
   if error:
     abort()
-
-  # on successful db insert, flash success
+    flash('ERROR: Artist was not listed!', )
   flash('Artist ' + request.form['name'] + ' was successfully listed!', )
-  # TODO: on unsuccessful db insert, flash an error instead.
-  # e.g., 
   return render_template('pages/home.html')
 
 
@@ -618,11 +638,8 @@ def create_show_submission():
   finally:
     db.session.close()
   if error:
-    abort()
-  flash('Show was successfully listed!')
-  # TODO: on unsuccessful db insert, flash an error instead.
-  # e.g., flash('An error occurred. Show could not be listed.')
-  # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
+    # abort(404)
+    flash('ERROR: An error occurred. Show could not be listed.')
   return render_template('pages/home.html')
 
 @app.errorhandler(404)
