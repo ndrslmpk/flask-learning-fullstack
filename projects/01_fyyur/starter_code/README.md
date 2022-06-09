@@ -133,7 +133,7 @@ The starter codes use an interactive form builder library called [Flask-WTF](htt
 4. As a fellow developer on this application, I should be able to run `flask db migrate`, and have my local database (once set up and created) be populated with the right tables to run this application and have it interact with my local postgres server, serving the application's needs completely with real data I can seed my local database with.
 
    - [x] The models should be completed (see TODOs in the `Models` section of `app.py`) and model the objects used throughout Fyyur.
-   - [] Define the models in a different file to follow [Separation of Concerns](https://en.wikipedia.org/wiki/Separation_of_concerns) design principles. You can refactor the models to a new file, such as `models.py`.
+   - [x] Define the models in a different file to follow [Separation of Concerns](https://en.wikipedia.org/wiki/Separation_of_concerns) design principles. You can refactor the models to a new file, such as `models.py`.
    - [x] The right _type_ of relationship and parent-child dynamics between models should be accurately identified and fit the needs of this particular application.
    - [x] The relationship between the models should be accurately configured, and referential integrity amongst the models should be preserved.
    - [x] `flask db migrate` should work, and populate my local postgres database with properly configured tables for this application's objects, including proper columns, column data types, constraints, defaults, and relationships that completely satisfy the needs of this application. The proper type of relationship between venues, artists, and shows should be configured.
