@@ -2,29 +2,34 @@
 # Imports
 #----------------------------------------------------------------------------#
 
+from http.client import HTTPException
+import json
+import logging
+import re
+import string
+import sys
 from datetime import date, time
 from enum import Enum
-import json
-from os import abort
-import re
+from logging import FileHandler, Formatter
 from sre_parse import State
-import sys
-import dateutil.parser
+
 import babel
-from flask import Flask, jsonify, render_template, request, Response, flash, redirect, url_for
-from psycopg2 import Time
+import dateutil.parser
 import sqlalchemy as sqla
-from sqlalchemy import MetaData, inspect, ARRAY
 import sqlalchemy.dialects.postgresql as pg
-from sqlalchemy.dialects.postgresql import JSON
+from flask import (Flask, Response, flash, jsonify, redirect, render_template,
+                   request, url_for, abort)
+from flask_migrate import Migrate
 from flask_moment import Moment
 from flask_sqlalchemy import SQLAlchemy
-import logging
-from logging import Formatter, FileHandler
-from flask_wtf import Form
+from psycopg2 import Time
+from sqlalchemy import ARRAY, Date, MetaData, inspect, null
+from sqlalchemy.dialects.postgresql import JSON
+
 from forms import *
-from flask_migrate import Migrate
-from models import db
+from models import db, Venue, Artist, Show, Availability, Status
+
+
 #----------------------------------------------------------------------------#
 # App Config. (Factory Pattern)
 #----------------------------------------------------------------------------#
@@ -35,12 +40,16 @@ def create_app():
   app = Flask(__name__)
   moment = Moment(app)
   app.config.from_object('config')
+  # app.debug = True
   db.init_app(app)
   migrate = Migrate(app, db)
-  
+
   return app
 
 app = create_app()
+if __name__ == "__main__":
+  app.debug = True
+  app.run()
 
 #----------------------------------------------------------------------------#
 # Enums
@@ -140,14 +149,14 @@ def show_venue(venue_id):
   past_shows = []
   for show in shows:
     artist = Artist.query.filter_by(id=show.artist_id).first_or_404()
-    if(show.start_time < datetime.now()):
+    if(show.start_time >= datetime.now()):
       upcoming_shows.append({
         "artist_id": artist.id, 
         "artist_name":artist.name, 
         "artist_image_link": artist.image_link,
         "start_time": show.start_time
         })
-    elif(show.start_time >= datetime.now()):
+    elif(show.start_time < datetime.now()):
       past_shows.append({
         "artist_id": artist.id, 
         "artist_name":artist.name, 
@@ -228,9 +237,10 @@ def create_venue_submission():
   finally:
     db.session.close()
   if error:
-    # abort()
+    abort(500)
     flash('ERROR: An error occurred. Show could not be listed.', 'error')
-  flash('Venue ' + request.form['name'] + ' was successfully listed!')
+  else:
+    flash('Venue ' + request.form['name'] + ' was successfully listed!')
   return render_template('pages/home.html')
 
 @app.route('/venues/delete/<int:venue_id>', methods=['POST'])
@@ -285,14 +295,14 @@ def show_artist(artist_id):
   past_shows = []
   for show in shows:
     venue = Venue.query.filter_by(id=show.venue_id).first_or_404()
-    if(show.start_time < datetime.now()):
+    if(show.start_time >= datetime.now()):
       upcoming_shows.append({
         "venue_id": venue.id, 
         "venue_name":venue.name, 
         "venue_image_link": venue.image_link,
         "start_time": show.start_time
         })
-    elif(show.start_time >= datetime.now()):
+    elif(show.start_time < datetime.now()):
       past_shows.append({
         "venue_id": venue.id, 
         "venue_name":venue.name, 
@@ -391,8 +401,8 @@ def edit_venue_submission(venue_id):
     _city = request.form["city"] 
     _address = request.form["address"] 
     _state = request.form["state"] 
-    _phone = request.form["phone"] 
-    _genres = dict_format["genres"] 
+    _phone = request.form["phone"]
+    _genres = dict_format["genres"]
     _facebook_link = request.form["facebook_link"] 
     _image_link = request.form["image_link"] 
     _website_link = request.form["website_link"] 
@@ -437,6 +447,11 @@ def create_artist_form():
 @app.route('/artists/create', methods=['POST'])
 def create_artist_submission():
   # temprorary store data as dict to store multiselect genres as list object
+  print("########################## create artist form")
+  print("request")
+  print(request)
+  print("request.form")
+  print(request.form)
   dict = request.form.to_dict(flat=False)
   error = False
   try:
@@ -453,6 +468,23 @@ def create_artist_submission():
     if _seeking_venue == 'y': 
       _seeking_venue = True
     _seeking_description = request.form["seeking_description"] 
+    _availabilities = request.form["availabilities"] 
+
+    if not _availabilities:
+      # Set today as default availability if none is chosen
+      print("datetime.today")
+      # print(datetime.today)
+      # _availabilities = datetime.today
+      # print("_availabilities of datetime.today")
+      # print(_availabilities)
+      # TODO: What happens if no availability is entered? Nothing? do not create availabilities?
+      availability_dates = None
+    else:
+      # if availabilities as Array are given, convert them into datetime objects
+      print("_availabilities")
+      print(_availabilities)
+      print(type(_availabilities))
+      availability_dates = _availabilities.split(",")
 
     # Create new Artist
     _artist = Artist(
@@ -465,20 +497,48 @@ def create_artist_submission():
       image_link = _image_link,
       website_link = _website_link,
       seeking_venue = _seeking_venue,
-      seeking_description = _seeking_description 
+      seeking_description = _seeking_description
     )
+
+    # print("_artist")
+    # app.logger.debug('_artist', _artist)
+    # print(_artist)
+    # sys.stdout.flush()
+    if availability_dates is not None:
+      for date in availability_dates:
+        # check if date can be converted into a valid date
+        print(date)
+        converted_date = datetime.strptime(date,'%m/%d/%Y').date()
+        print(converted_date)
+        print(converted_date)
+        _availability = Availability(
+          artist_id = _artist,
+          date = converted_date,
+          status = Status.searching,
+          show_id = None
+        )
+        app.logger.debug(_artist.availabilities.append(_availability))
+        _artist.availabilities.append(_availability)
+        # print("_availability")
+        # print(_availability)
+        # print("_artist")
+        # print(_artist)
     db.session.add(_artist)
     db.session.commit()
-  except:
+  except Exception as e:
+    print(e)
+    print("Error occured")
     error=True
     db.session.rollback()
     flash('An error occurred. Artist ' + request.form['name'] + ' could not be listed.', 'error')
   finally:
     db.session.close()
   if error:
-    abort()
+    abort(500)
     flash('ERROR: Artist was not listed!', 'error')
-  flash('Artist ' + request.form['name'] + ' was successfully listed!', )
+  else:
+    flash('Artist ' + request.form['name'] + ' was successfully listed!')
+
   return render_template('pages/home.html')
 
 
@@ -531,7 +591,7 @@ def create_show_submission():
   finally:
     db.session.close()
   if error:
-    # abort(404)
+    abort(404)
     flash('ERROR: An error occurred. Show could not be listed.', 'error')
   return render_template('pages/home.html')
 
@@ -542,7 +602,6 @@ def not_found_error(error):
 @app.errorhandler(500)
 def server_error(error):
     return render_template('errors/500.html'), 500
-
 
 if not app.debug:
     file_handler = FileHandler('error.log')
@@ -560,7 +619,7 @@ if not app.debug:
 
 # Default port:
 if __name__ == '__main__':
-    app.run()
+  app.run()
 
 # Or specify port manually:
 '''

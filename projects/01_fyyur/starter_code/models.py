@@ -1,5 +1,6 @@
+import enum
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import JSON, MetaData
+from sqlalchemy import ARRAY, DATE, JSON, Enum, MetaData
 
 convention = {
     "ix": 'ix_%(column_0_label)s',
@@ -13,6 +14,14 @@ metadata = MetaData(naming_convention=convention)
 
 
 db = SQLAlchemy(metadata=metadata)
+#----------------------------------------------------------------------------#
+# Enums.
+#----------------------------------------------------------------------------#
+
+class Status(enum.Enum):
+  searching = "Searching"
+  booked = "Booked"
+
 #----------------------------------------------------------------------------#
 # Models.
 #----------------------------------------------------------------------------#
@@ -71,6 +80,7 @@ class Artist(db.Model):
     seeking_venue = db.Column(db.Boolean)
     seeking_description = db.Column(db.String(500))
     shows = db.relationship('Show', backref='Artist', lazy=True) # 1 <--Artist--[has-many]--Shows--> N
+    availabilities = db.relationship('Availability', backref='Artist', lazy=True) # 1 <--Artist--[has-many]--Shows--> N
     # artist.upcoming_shows_count => Needs to be implemented in the Controller
     # artist.pasts_shows_count => Needs to be implented in the Controller
     
@@ -86,7 +96,7 @@ class Artist(db.Model):
           'image_link'              : self.image_link,
           'facebook_link'           : self.facebook_link,
           'website_link'            : self.website_link,
-          'seeking_venue'          : self.seeking_venue,
+          'seeking_venue'           : self.seeking_venue,
           'seeking_description'     : self.seeking_description,
           'shows'           	      : self.shows,
       }
@@ -104,7 +114,7 @@ class Artist(db.Model):
           'image_link'              : self.image_link,
           'facebook_link'           : self.facebook_link,
           'website_link'            : self.website_link,
-          'seeking_venue'          : self.seeking_venue,
+          'seeking_venue'           : self.seeking_venue,
           'seeking_description'     : self.seeking_description,
           'shows'           	      : self.shows,
           # 'modified_at': dump_datetime(self.modified_at),
@@ -127,6 +137,7 @@ class Show(db.Model):
   start_time = db.Column(db.DateTime)
   artist_id = db.Column(db.Integer, db.ForeignKey('Artist.id', ondelete='CASCADE'), nullable=False) # N <--Shows--[have-always-one]--Artist--> N
   venue_id = db.Column(db.Integer, db.ForeignKey('Venue.id', ondelete='CASCADE'), nullable=False)
+  availability = db.relationship('Availability', backref='Show', lazy=True) # 1 <--Show--[has-many]--Availabilities--> N
 
   @property
   def serialize(self):
@@ -136,4 +147,23 @@ class Show(db.Model):
       'start_time'              : self.start_time,
       'artist_id'               : self.artist_id,
       'venue_id'                : self.venue_id,
+    }
+
+class Availability(db.Model):
+  __tablename__ = 'Availability'
+  id = db.Column(db.Integer, primary_key=True)
+  artist_id = db.Column(db.Integer, db.ForeignKey('Artist.id', ondelete='CASCADE'), nullable=False) # N <--Availabilities--[have-always-one]--Artist--> N
+  date = db.Column(db.Date)
+  status = db.Column(db.Enum(Status)) 
+  show_id = db.Column(db.Integer, db.ForeignKey('Show.id', ondelete='CASCADE'), nullable=True)
+
+  @property
+  def serialize(self):
+    """Return object data in easily serializable format"""
+    return {
+      'id'                      : self.id,
+      'artist_id'               : self.artist_id,
+      'date'                    : self.date,
+      'status'                  : self.status,
+      'show_id'                 : self.show_id,
     }

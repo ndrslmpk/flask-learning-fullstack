@@ -1,6 +1,7 @@
-from datetime import datetime
+from datetime import date, datetime
+from email.policy import default
 from flask_wtf import Form
-from wtforms import StringField, SelectField, SelectMultipleField, DateTimeField, BooleanField
+from wtforms import StringField, SelectField, SelectMultipleField, DateTimeField, BooleanField, DateField
 from wtforms.validators import DataRequired, Length, URL, Regexp
 
 class ShowForm(Form):
@@ -245,4 +246,10 @@ class ArtistForm(Form):
     seeking_description = StringField(
         'seeking_description'
      )
+
+    availabilities = StringField(
+        'availabilities',
+        id='datepicker',
+     )
+    # availabilities = StringField('availabilities')
 

@@ -202,3 +202,12 @@ python3 app.py
 
 6. **Verify on the Browser**<br>
    Navigate to project homepage [http://127.0.0.1:5000/](http://127.0.0.1:5000/) or [http://localhost:5000](http://localhost:5000)
+
+## Additionals
+
+### error debugging
+If you are trying to debug a certain part of your application, you should consider using `logging` instead of printing.
+
+```
+app.logger.debug('_artist', _artist)
+```
