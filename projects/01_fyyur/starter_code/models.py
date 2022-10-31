@@ -22,6 +22,21 @@ class Status(enum.Enum):
   searching = "Searching"
   booked = "Booked"
 
+  def __str__(self):
+    print("#### self.name")
+    print(self.name)
+    print("#### self.value")
+    return self.name
+
+  @classmethod
+  def choices(cls):
+    return [(choice, choice.value) for choice in cls]
+
+  @classmethod
+  def coerce(cls, item):
+    return item if isinstance(item, Status) else Status[item]
+  
+
 #----------------------------------------------------------------------------#
 # Models.
 #----------------------------------------------------------------------------#
@@ -167,3 +182,7 @@ class Availability(db.Model):
       'status'                  : self.status,
       'show_id'                 : self.show_id,
     }
+
+  def __repr__(self):
+    return f'Availability("{self.id}","{self.artist_id}","{self.date}","{self.status}","{self.show_id}")'
+    

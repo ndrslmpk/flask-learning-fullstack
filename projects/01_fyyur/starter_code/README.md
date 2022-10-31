@@ -142,7 +142,9 @@ The starter codes use an interactive form builder library called [Flask-WTF](htt
 
 Looking to go above and beyond? This is the right section for you! Here are some challenges to make your submission stand out:
 
-- [] Implement artist availability. An artist can list available times that they can be booked. Restrict venues from being able to create shows with artists during a show time that is outside of their availability.
+- [X] Implement artist availability. An artist can list available times that they can be booked. Restrict venues from being able to create shows with artists during a show time that is outside of their availability.
+   - [X] Add an availability section in the Artist#show. Either each availability can be Edited or a new one can be edited.
+   - [X] Availabilities can be deleted as well.
 - [] Show Recent Listed Artists and Recently Listed Venues on the homepage, returning results for Artists and Venues sorting by newly created. Limit to the 10 most recently listed items.
 - [] Implement Search Artists by City and State, and Search Venues by City and State. Searching by "San Francisco, CA" should return all artists or venues in San Francisco, CA.
 - [x] BONUS CHALLENGE: Implement a button to delete a Venue on a Venue Page, have it so that clicking that button delete it from the db then redirect the user to the homepage

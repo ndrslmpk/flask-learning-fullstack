@@ -83,6 +83,36 @@ endblock %} {% block content %}
     {% endfor %}
   </div>
 </section>
+<section>
+  <h2 class="monospace">
+    {{ artist.availabilities_count }} {% if artist.past_shows_count == 1
+    %}Availability{% else %}Availabilities{% endif %}
+  </h2>
+  <div class="row">
+    <ul class="list-group">
+      {%for availability in artist.availabilities %}
+        <li class="list-group-item">
+          {{ availability.date }} 
+          | Status: 
+          <em>{{ availability.status.value }}</em>
+          | <a href="/artists/{{ artist.id }}/availabilities/{{ availability.id }}/edit"
+            ><button class="btn btn-default btn-sm">Edit</button></a
+          >
+          | <form class="center-block" action="/artists/{{ artist.id }}/availabilities/delete/{{ availability.id }}" name="delete" method="POST">
+              <button class="btn btn-danger btn-sm" id="{{ availability.id }}" type="submit">
+                Delete
+              </button>
+            </form>
+        </li>
+      {% endfor %}
+      <li class="list-group-item">
+        <a href="/artists/{{ artist.id }}/availabilities/create"
+          ><button class="btn btn-default btn-sm">Add new availability</button></a
+        >
+      </li>
+    </ul>
+  </div>
+</section>
 
 <a href="/artists/{{ artist.id }}/edit"
   ><button class="btn btn-primary btn-lg">Edit</button></a

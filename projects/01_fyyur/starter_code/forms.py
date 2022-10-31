@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from email.policy import default
 from flask_wtf import Form
+from models import Status
 from wtforms import StringField, SelectField, SelectMultipleField, DateTimeField, BooleanField, DateField
 from wtforms.validators import DataRequired, Length, URL, Regexp
 
@@ -249,7 +250,11 @@ class ArtistForm(Form):
 
     availabilities = StringField(
         'availabilities',
-        id='datepicker',
+        id='datepicker'
      )
-    # availabilities = StringField('availabilities')
 
+class AvailabilityForm(Form):
+    artist_id = StringField('artist_id', validators=[DataRequired()], render_kw={'disabled':''})
+    date = DateField('date', format='%m/%d/%Y', validators=[DataRequired()])
+    status = SelectField('status', choices=Status.choices(), coerce=Status.coerce, validators=[DataRequired()], default=Status.searching)
+    show_id = StringField('artist_id')

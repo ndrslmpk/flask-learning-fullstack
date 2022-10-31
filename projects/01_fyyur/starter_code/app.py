@@ -2,6 +2,7 @@
 # Imports
 #----------------------------------------------------------------------------#
 
+from collections import namedtuple
 from http.client import HTTPException
 import json
 import logging
@@ -291,6 +292,7 @@ def search_artists():
 def show_artist(artist_id):
   artist = Artist.query.filter_by(id=artist_id).first_or_404()
   shows = Show.query.filter_by(artist_id=artist_id).all()
+  availabilities = Availability.query.filter_by(artist_id=artist_id).all()
   upcoming_shows = []
   past_shows = []
   for show in shows:
@@ -309,6 +311,8 @@ def show_artist(artist_id):
         "venue_image_link": venue.image_link,
         "start_time": show.start_time
         })
+  print("availabilities")
+  print(availabilities)
   data = {
     "id": artist.id,
     "name": artist.name,
@@ -326,6 +330,7 @@ def show_artist(artist_id):
     "upcoming_shows": upcoming_shows,
     "past_shows_count": len(past_shows),
     "upcoming_shows_count": len(upcoming_shows),
+    "availabilities": availabilities,
   }
   return render_template('pages/show_artist.html', artist=data)
 
@@ -334,7 +339,9 @@ def show_artist(artist_id):
 @app.route('/artists/<int:artist_id>/edit', methods=['GET'])
 def edit_artist(artist_id):
   artist = Artist.query.filter_by(id=artist_id).first_or_404()
+  print(artist.availabilities)
   artist = artist.serialize
+  # print(artist.serialize)
   form = ArtistForm(data=artist)
   return render_template('forms/edit_artist.html', form=form, artist=artist)
 
@@ -575,6 +582,16 @@ def create_show_submission():
     _artist_id = request.form["artist_id"] 
     _venue_id = request.form["venue_id"] 
     _start_time = request.form["start_time"] 
+    
+    # Prevent the creation of Shows on the same 
+    # TODO: Implement logic that just recognizes availabilites that are booked
+    date = datetime.strptime(_start_time, '%Y-%m-%d %H:%M:%S').date()
+    availabilities = Availability.query.filter_by(artist_id=_artist_id).all()
+    for a in availabilities:
+      if date == a.date:
+        flash('The given Start Time is already booked. Please choose another starting Date.', 'error')
+        db.session.rollback()
+        return render_template('pages/home.html')
 
   # Create new Venue
     _show = Show(
@@ -582,6 +599,7 @@ def create_show_submission():
       venue_id = _venue_id,
       start_time = _start_time
     )
+    # TODO: Set the given availability to being booked.
     db.session.add(_show)
     db.session.commit()
   except:
@@ -612,6 +630,91 @@ if not app.debug:
     file_handler.setLevel(logging.INFO)
     app.logger.addHandler(file_handler)
     app.logger.info('errors')
+
+# Availabilities
+#----------------------------------------------------------------------------#
+
+@app.route('/artists/<int:artist_id>/availabilities/create', methods=['GET'])
+def create_availability_form(artist_id):
+  print("request.base_url")
+  print(request.base_url)
+  PredefinedData = namedtuple('predefineddata', ['artist_id'])
+  predefined_data = PredefinedData(artist_id)
+  form = AvailabilityForm(obj=predefined_data)
+  print(form)
+  print(form.data)
+  return render_template('forms/new_availability.html', form=form)
+
+@app.route('/artists/<int:artist_id>/availabilities/create', methods=['POST'])
+def create_artist_availability(artist_id):
+  # temporary store data as dict to store multiselect genres as list object
+  dict = request.form.to_dict(flat=False)
+
+  error = False
+  try:
+    _artist_id = artist_id
+    _date = request.form["date"]
+    _status = request.form["status"]
+    if request.form["show_id"] == '':
+      _show_id = None
+    else: 
+      _show_id = request.form["show_id"]
+
+    print(_date)
+    converted_date = datetime.strptime(_date,'%Y-%m-%d').date()
+
+    _availability = Availability(
+      artist_id = _artist_id,
+      date = converted_date,
+      status = _status,
+      show_id = _show_id,
+    )
+
+    db.session.add(_availability)
+    db.session.commit()
+  except Exception as e:
+    print(e)
+    print("Error occured")
+    error=True
+    db.session.rollback()
+    flash('An error occurred. Artist ' + str(artist_id) + ' could not be listed.', 'error')
+  finally:
+    db.session.close()
+  if error:
+    abort(500)
+    flash('ERROR: Artist was not listed!', 'error')
+  else:
+    flash("Artist's availability" + str(artist_id) + "was successfully listed!")
+
+  return render_template('pages/home.html')
+
+@app.route('/artists/<int:artist_id>/availabilities/<int:availability_id>/edit', methods=['GET'])
+def edit_availability_form(artist_id, availability_id):
+  availability = Availability.query.filter_by(id=availability_id).first_or_404()
+
+  availability = availability.serialize
+
+  form = AvailabilityForm(data=availability)
+  return render_template('forms/new_availability.html', form=form)
+
+@app.route('/artists/<int:artist_id>/availabilities/delete/<int:availability_id>', methods=['POST'])
+def delete_availability(artist_id, availability_id):
+  error=False
+  try:
+    _availability = Availability.query.filter_by(id=availability_id).first_or_404()
+    db.session.delete(_availability)
+    db.session.commit()
+  except Exception as e:
+    print(e)
+    error = True
+    db.session.rollback()
+  finally:
+    db.session.close()
+  if error==False:
+    flash('Availability was successfully deleted!')
+  else:
+    flash('An error occurred. Availability could not be deleted.')
+  return render_template('pages/home.html')
 
 #----------------------------------------------------------------------------#
 # Launch.
