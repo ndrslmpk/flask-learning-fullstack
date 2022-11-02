@@ -1,19 +1,32 @@
-{% extends 'layouts/main.html' %}
-{% block title %}Fyyur | Venues{% endblock %}
-{% block content %}
-{% for area in areas %}
+{% extends 'layouts/main.html' %} {% block title %}Fyyur | Venues{% endblock %}
+{% block content %} {% for area in areas %}
 <h3>{{ area.city }}, {{ area.state }}</h3>
-	<ul class="items">
-		{% for venue in area.venues %}
-		<li>
-			<a href="/venues/{{ venue.id }}">
-				<i class="fas fa-music"></i>
-				<div class="item">
-					<h5>{{ venue.name }}</h5>
-				</div>
-			</a>
-		</li>
-		{% endfor %}
-	</ul>
-{% endfor %}
-{% endblock %}
+<ul class="items">
+  <!-- <p>{{ area }}</p> -->
+  {% for venue in area.venues %}
+  <li>
+    <a href="/venues/{{ venue.id }}">
+      <i class="fas fa-music"></i>
+      <div class="item">
+        <h5>{{ venue.name }} : [ {{venue.num_upcoming_shows}} ]</h5>
+        <span>
+          <form
+            action="/venues/delete/{{ venue.id }}"
+            name="delete"
+            method="POST"
+          >
+            <button
+              class="btn btn-sm btn-danger"
+              id="{{ venue.id }}"
+              type="submit"
+            >
+              &cross;
+            </button>
+          </form>
+        </span>
+      </div>
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% endfor %} {% endblock %}
