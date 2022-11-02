@@ -1,3 +1,4 @@
+from datetime import datetime
 import enum
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import ARRAY, DATE, JSON, Enum, MetaData
@@ -23,9 +24,6 @@ class Status(enum.Enum):
   booked = "Booked"
 
   def __str__(self):
-    print("#### self.name")
-    print(self.name)
-    print("#### self.value")
     return self.name
 
   @classmethod
@@ -57,9 +55,10 @@ class Venue(db.Model):
     seeking_talent = db.Column(db.Boolean)
     seeking_description = db.Column(db.String(500))
     shows = db.relationship('Show', backref='Venue', lazy=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     def __repr__(self):
-        return f'Venue("{self.id}","{self.name}","{self.city}","{self.state}","{self.address}","{self.phone}","{self.genres}","{self.image_link}","{self.facebook_link}","{self.website_link}","{self.seeking_talent}","{self.seeking_description}")'
+        return f'Venue("{self.id}","{self.name}","{self.city}","{self.state}","{self.address}","{self.phone}","{self.genres}","{self.image_link}","{self.facebook_link}","{self.website_link}","{self.seeking_talent}","{self.seeking_description}", "{self.created_at}")'
     
     @property
     def serialize(self):
@@ -78,6 +77,7 @@ class Venue(db.Model):
           'seeking_talent'          : self.seeking_talent,
           'seeking_description'     : self.seeking_description,
           'shows'           	      : self.shows,
+          'created_at'              : self.created_at,
       }
 
 class Artist(db.Model):
@@ -96,25 +96,12 @@ class Artist(db.Model):
     seeking_description = db.Column(db.String(500))
     shows = db.relationship('Show', backref='Artist', lazy=True) # 1 <--Artist--[has-many]--Shows--> N
     availabilities = db.relationship('Availability', backref='Artist', lazy=True) # 1 <--Artist--[has-many]--Shows--> N
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     # artist.upcoming_shows_count => Needs to be implemented in the Controller
     # artist.pasts_shows_count => Needs to be implented in the Controller
     
     def __repr__(self):
-      # return f'Artist( "{self.id}", "{self.name}", "{self.city}", "{self.state}", "{self.phone}", "{self.genres}", "{self.image_link}", "{self.facebook_link}", "{self.website_link}", "{self.seeking_venue}", "{self.seeking_description}")'
-      return {
-          'id'                      : self.id,
-          'name'                    : self.name,
-          'city'                    : self.city,
-          'state'                   : self.state,
-          'phone'                   : self.phone,
-          'genres'                  : self.genres,
-          'image_link'              : self.image_link,
-          'facebook_link'           : self.facebook_link,
-          'website_link'            : self.website_link,
-          'seeking_venue'           : self.seeking_venue,
-          'seeking_description'     : self.seeking_description,
-          'shows'           	      : self.shows,
-      }
+      return f'Artist( "{self.id}", "{self.name}", "{self.city}", "{self.state}", "{self.phone}", "{self.genres}", "{self.image_link}", "{self.facebook_link}", "{self.website_link}", "{self.seeking_venue}", "{self.seeking_description}", "{self.created_at}")'
 
     @property
     def serialize(self):
@@ -132,6 +119,7 @@ class Artist(db.Model):
           'seeking_venue'           : self.seeking_venue,
           'seeking_description'     : self.seeking_description,
           'shows'           	      : self.shows,
+          'created_at'              : self.created_at,
           # 'modified_at': dump_datetime(self.modified_at),
           # This is an example how to deal with Many2Many relations
           #  'many2many'  : self.serialize_many2many
@@ -153,6 +141,7 @@ class Show(db.Model):
   artist_id = db.Column(db.Integer, db.ForeignKey('Artist.id', ondelete='CASCADE'), nullable=False) # N <--Shows--[have-always-one]--Artist--> N
   venue_id = db.Column(db.Integer, db.ForeignKey('Venue.id', ondelete='CASCADE'), nullable=False)
   availability = db.relationship('Availability', backref='Show', lazy=True) # 1 <--Show--[has-many]--Availabilities--> N
+  created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
   @property
   def serialize(self):
@@ -162,6 +151,7 @@ class Show(db.Model):
       'start_time'              : self.start_time,
       'artist_id'               : self.artist_id,
       'venue_id'                : self.venue_id,
+      'created_at'              : self.created_at,
     }
 
 class Availability(db.Model):
@@ -171,6 +161,7 @@ class Availability(db.Model):
   date = db.Column(db.Date)
   status = db.Column(db.Enum(Status)) 
   show_id = db.Column(db.Integer, db.ForeignKey('Show.id', ondelete='CASCADE'), nullable=True)
+  created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
   @property
   def serialize(self):
@@ -181,6 +172,7 @@ class Availability(db.Model):
       'date'                    : self.date,
       'status'                  : self.status,
       'show_id'                 : self.show_id,
+      'created_at'              : self.created_at,
     }
 
   def __repr__(self):

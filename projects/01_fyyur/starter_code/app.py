@@ -42,13 +42,16 @@ def create_app():
   moment = Moment(app)
   app.config.from_object('config')
   # app.debug = True
+  
   db.init_app(app)
   migrate = Migrate(app, db)
 
   return app
 
 app = create_app()
+
 if __name__ == "__main__":
+  db.create_all()
   app.debug = True
   app.run()
 
@@ -102,7 +105,15 @@ app.jinja_env.filters['datetime'] = format_datetime
 
 @app.route('/')
 def index():
-  return render_template('pages/home.html')
+  venues = Venue.query.order_by(Venue.created_at.desc()).limit(10).all()
+  print(venues)
+  artists = Artist.query.order_by(Artist.created_at.desc()).limit(10).all()
+  print(artists)
+  # PredefinedData = namedtuple('data', ['artist', 'venue'])
+  # predefined_data = PredefinedData(artist_id)
+
+
+  return render_template('pages/home.html', artists=artists, venues=venues)
 
 #  Venues
 #  ----------------------------------------------------------------
@@ -452,11 +463,6 @@ def create_artist_form():
 @app.route('/artists/create', methods=['POST'])
 def create_artist_submission():
   # temprorary store data as dict to store multiselect genres as list object
-  print("########################## create artist form")
-  print("request")
-  print(request)
-  print("request.form")
-  print(request.form)
   dict = request.form.to_dict(flat=False)
   error = False
   try:
@@ -477,12 +483,6 @@ def create_artist_submission():
 
     if not _availabilities:
       # Set today as default availability if none is chosen
-      print("datetime.today")
-      # print(datetime.today)
-      # _availabilities = datetime.today
-      # print("_availabilities of datetime.today")
-      # print(_availabilities)
-      # TODO: What happens if no availability is entered? Nothing? do not create availabilities?
       availability_dates = None
     else:
       # if availabilities as Array are given, convert them into datetime objects
@@ -505,29 +505,17 @@ def create_artist_submission():
       seeking_description = _seeking_description
     )
 
-    # print("_artist")
-    # app.logger.debug('_artist', _artist)
-    # print(_artist)
-    # sys.stdout.flush()
     if availability_dates is not None:
       for date in availability_dates:
         # check if date can be converted into a valid date
-        print(date)
         converted_date = datetime.strptime(date,'%m/%d/%Y').date()
-        print(converted_date)
-        print(converted_date)
         _availability = Availability(
           artist_id = _artist,
           date = converted_date,
           status = Status.searching,
           show_id = None
         )
-        app.logger.debug(_artist.availabilities.append(_availability))
         _artist.availabilities.append(_availability)
-        # print("_availability")
-        # print(_availability)
-        # print("_artist")
-        # print(_artist)
     db.session.add(_artist)
     db.session.commit()
   except Exception as e:
@@ -634,13 +622,9 @@ if not app.debug:
 
 @app.route('/artists/<int:artist_id>/availabilities/create', methods=['GET'])
 def create_availability_form(artist_id):
-  print("request.base_url")
-  print(request.base_url)
   PredefinedData = namedtuple('predefineddata', ['artist_id'])
   predefined_data = PredefinedData(artist_id)
   form = AvailabilityForm(obj=predefined_data)
-  print(form)
-  print(form.data)
   return render_template('forms/new_availability.html', form=form)
 
 @app.route('/artists/<int:artist_id>/availabilities/create', methods=['POST'])
