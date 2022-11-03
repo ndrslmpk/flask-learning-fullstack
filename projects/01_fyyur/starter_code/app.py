@@ -52,7 +52,6 @@ app = create_app()
 
 with app.app_context():
   db.create_all()
-  # app.run()
 
 #----------------------------------------------------------------------------#
 # Enums
@@ -199,7 +198,7 @@ def create_venue_form():
 
 @app.route('/venues/create', methods=['POST'])
 def create_venue_submission():
-  # temprorary store data as dict to store multiselect genres as list object
+  # temporary store data as dict to store multiselect genres as list object
   dict = request.form.to_dict(flat=False)
   error = False
   try:
@@ -344,7 +343,6 @@ def edit_artist(artist_id):
   artist = Artist.query.filter_by(id=artist_id).first_or_404()
   print(artist.availabilities)
   artist = artist.serialize
-  # print(artist.serialize)
   form = ArtistForm(data=artist)
   return render_template('forms/edit_artist.html', form=form, artist=artist)
 
@@ -354,7 +352,6 @@ def edit_artist_submission(artist_id):
   artist = Artist.query.filter_by(id=artist_id).first_or_404()
   dict_format = request.form.to_dict(flat=False)
   try:
-    # Get form data
     _name = request.form["name"] 
     _city = request.form["city"] 
     _state = request.form["state"] 
@@ -456,7 +453,7 @@ def create_artist_form():
 
 @app.route('/artists/create', methods=['POST'])
 def create_artist_submission():
-  # temprorary store data as dict to store multiselect genres as list object
+  # temporary store data as dict to store multiselect genres as list object
   dict = request.form.to_dict(flat=False)
   error = False
   try:
@@ -480,9 +477,6 @@ def create_artist_submission():
       availability_dates = None
     else:
       # if availabilities as Array are given, convert them into datetime objects
-      print("_availabilities")
-      print(_availabilities)
-      print(type(_availabilities))
       availability_dates = _availabilities.split(",")
 
     # Create new Artist
@@ -559,29 +553,37 @@ def create_shows():
 def create_show_submission():
   error=False
   try:
+    showDateAvailable = True
     _artist_id = request.form["artist_id"] 
     _venue_id = request.form["venue_id"] 
     _start_time = request.form["start_time"] 
     
-    # Prevent the creation of Shows on the same 
-    # TODO: Implement logic that just recognizes availabilites that are booked
+    # Prevent the creation of Shows on the same date 
     date = datetime.strptime(_start_time, '%Y-%m-%d %H:%M:%S').date()
     availabilities = Availability.query.filter_by(artist_id=_artist_id).all()
+    
     for a in availabilities:
       if date == a.date:
         flash('The given Start Time is already booked. Please choose another starting Date.', 'error')
+        showDateAvailable = False
         db.session.rollback()
         return render_template('pages/home.html')
-
-  # Create new Venue
-    _show = Show(
-      artist_id = _artist_id,
-      venue_id = _venue_id,
-      start_time = _start_time
-    )
-    # TODO: Set the given availability to being booked.
-    db.session.add(_show)
-    db.session.commit()
+    
+    if showDateAvailable:
+      _show = Show(
+        artist_id = _artist_id,
+        venue_id = _venue_id,
+        start_time = _start_time
+      )
+      _availability = Availability(
+        artist_id = _artist_id,
+        date = date,
+        status = Status.booked,
+        show_id = _show.id,
+      )
+      db.session.add(_show)
+      db.session.add(_availability)
+      db.session.commit()
   except:
     error=True
     db.session.rollback()
