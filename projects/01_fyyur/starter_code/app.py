@@ -39,21 +39,20 @@ from models import db, Venue, Artist, Show, Availability, Status
 
 def create_app():
   app = Flask(__name__)
-  moment = Moment(app)
   app.config.from_object('config')
-  # app.debug = True
   
   db.init_app(app)
+
+  moment = Moment(app)
   migrate = Migrate(app, db)
 
   return app
 
 app = create_app()
 
-if __name__ == "__main__":
+with app.app_context():
   db.create_all()
-  app.debug = True
-  app.run()
+  # app.run()
 
 #----------------------------------------------------------------------------#
 # Enums
@@ -106,12 +105,7 @@ app.jinja_env.filters['datetime'] = format_datetime
 @app.route('/')
 def index():
   venues = Venue.query.order_by(Venue.created_at.desc()).limit(10).all()
-  print(venues)
   artists = Artist.query.order_by(Artist.created_at.desc()).limit(10).all()
-  print(artists)
-  # PredefinedData = namedtuple('data', ['artist', 'venue'])
-  # predefined_data = PredefinedData(artist_id)
-
 
   return render_template('pages/home.html', artists=artists, venues=venues)
 
